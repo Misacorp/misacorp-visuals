@@ -47,7 +47,9 @@ nav {
 }
 
 .header-container {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
   background-color: #2A2A2A;
   width: 100%;
   height: 100vh;
@@ -73,33 +75,19 @@ nav {
   margin-left: auto;
   margin-right: auto;
   margin-top: 6rem;
+
+  -webkit-transition-property: top width; /* Safari */
+  transition-property: top width;   
+  -webkit-transition-duration: 1s; /* Safari */
+  transition-duration: 1s;
 }
 
-.header-circle {
-  background-color: #333;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-46%);
-  -ms-transform: translateY(-46%);
-  -moz-transform: translateY(-46%);
-  -webkit-transform: translateY(-46%);
-  -o-transform: translateY(-46%);
-  left: 0;
-  right: 0;
-  width: 800px;
-  height: 800px;
-  border-radius: 50%;
-  margin: 0;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 0;
-}
-
-.header-text {
-  line-height: 400px;
-  font-size: 5rem;
-  font-family: 'Permanent Marker', cursive;
-  text-shadow: 5px 5px 10px rgba(0,0,0,0.7);
+.text-1 {
+  opacity: 0;
+  -webkit-transition-property: opacity top; /* Safari */
+  transition-property: opacity top;   
+  -webkit-transition-duration: 1s; /* Safari */
+  transition-duration: 1s;
 }
 
 .parallax-container {
@@ -141,6 +129,10 @@ nav {
 .first-container {
   margin-top: 150px;
   margin-bottom: 50px;
+}
+
+.scroll-padding {
+  height: 2000px;
 }
 
 footer.page-footer {
@@ -282,13 +274,6 @@ footer .row {
     left: -70%;
     top: -75%;
 }
-
-/*    GRID CONTENT     */
-
-
-/*    END DIAMOND GRID CSS     */
-
-
 
 
 
