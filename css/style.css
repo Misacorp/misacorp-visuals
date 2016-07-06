@@ -131,6 +131,15 @@ nav {
   margin-bottom: 50px;
 }
 
+.forward-button {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  height: 100px;
+  width: 100%;
+  cursor: pointer;
+}
+
 .scroll-padding {
   height: 10000px;
 }

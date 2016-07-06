@@ -47,3 +47,7 @@ $(window).scroll(function () {
             "top" : "50%"})
     }
 });
+
+$('#forward').click(function () {
+    $(window).scrollTop($(window).scrollTop() + 500);
+})
