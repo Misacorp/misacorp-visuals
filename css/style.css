@@ -10,6 +10,10 @@ a {
   color: #C6A075;
 }
 
+i {
+  display: none;
+}
+
 .semibold {
   font-weight: 400;
 }
@@ -82,12 +86,31 @@ nav {
   transition-duration: 1s;
 }
 
+.content-text {  
+  position: fixed;
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center; 
+  -webkit-transition-duration: 1s; /* Safari */
+  transition-duration: 1s;
+}
+
 .text-1 {
+  top: 60%;  
   opacity: 0;
   -webkit-transition-property: opacity top; /* Safari */
   transition-property: opacity top;   
   -webkit-transition-duration: 1s; /* Safari */
   transition-duration: 1s;
+}
+
+.text-2 {
+  top: 60%;
+  opacity: 0;
+  -webkit-transition-property: opacity top; /* Safari */
+  transition-property: opacity top;
 }
 
 .parallax-container {

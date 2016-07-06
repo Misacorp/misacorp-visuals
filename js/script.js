@@ -27,7 +27,7 @@ $(window).scroll(function () {
         $('#main-logo').css({
             "top" : "50%"});
         $('.text-1').css({
-            "opacity" : "0.0"})
+            "opacity" : "0"})
         }
 
     if($(window).scrollTop() >= 500 && $(window).scrollTop() < 1000) {
@@ -36,15 +36,30 @@ $(window).scroll(function () {
             "top" : "40%"});
         $('.text-1').css({
             "top" : "60%",
-            "opacity" : "1.0"})
+            "opacity" : "1"});
+        $('.text-2').css({
+            "opacity" : "0"});
     }
 
-    if($(window).scrollTop() >= 1000) {
+    if($(window).scrollTop() >= 1000 && $(window).scrollTop() < 1500) {
         $('#main-logo').css({
             "top" : "30%",
             "width" : "300px"});
         $('.text-1').css({
-            "top" : "50%"})
+            "top" : "50%"});
+        $('.text-2').css({
+            "top" : "60%",
+            "opacity" : "1"});
+    }
+
+    if($(window).scrollTop() >= 1500) {
+        $('#main-logo').css({
+            "top" : "25%",
+            "width" : "200px"});
+        $('.text-1').css({
+            "top" : "40%"});
+        $('.text-2').css({
+            "top" : "50%"});
     }
 });
 
