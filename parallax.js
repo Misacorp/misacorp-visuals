@@ -1,10 +1,13 @@
-$(window).on('scroll', function(e) {
-	update(window.pageYOffset);
-});
+window.addEventListener(
+  'scroll',
+  (event) => requestAnimationFrame(() => update(window.pageYOffset))
+);
 
-$(window).on('resize', function(e) {
-	updateHeaderHeight();
-});
+window.addEventListener(
+  'resize',
+  (event) => requestAnimationFrame(() => updateHeaderHeight()
+);
+
 
 function update(offset) {
 	let elements = $('body').find('.parallax-component');
