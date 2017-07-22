@@ -5,7 +5,7 @@ window.addEventListener(
 
 window.addEventListener(
   'resize',
-  (event) => requestAnimationFrame(() => updateHeaderHeight()
+  (event) => requestAnimationFrame(() => updateHeaderHeight())
 );
 
 
