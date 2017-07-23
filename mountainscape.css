@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css?family=Dosis:700|Titillium+Web:300,400,600,700');
+
 * {
 	padding: 0;
 	margin: 0;
@@ -6,9 +8,10 @@
 body {
 	background-color: #3D3D3D;
 	height: 300rem;
+	font-family: 'Titillium Web', sans-serif;
 }
 
-img.parallax-component {
+.parallax-component {
 	position: absolute;
 	height: 100%;
 	top: 0;
@@ -29,3 +32,69 @@ header {
 article {
 }
 
+.title {
+	display: block;
+	top: 20%;
+	left: 50%;
+	color: #3D3D3D;
+	text-align: center;
+	width: 90%;
+	transition: font-size ease-out 0.5s, top ease-out 0.5s;
+}
+
+.title h1 {
+	display: block;
+    font-size: 3.2em;
+	font-family: 'Dosis', sans-serif;
+	font-weight: 700;
+}
+
+.title p {
+    font-size: 1.73em;
+    font-weight: 300;
+}
+
+.title img {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	max-height: 256px;
+}
+
+.unselectable {
+	user-drag: none; 
+	user-select: none;
+	-moz-user-select: none;
+	-webkit-user-drag: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+}
+
+.rounded-caps {
+	stroke-linecap: round;
+}
+
+@media screen and (max-width: 120em) {
+	.title {
+		top: 10%;
+	}
+}
+
+@media screen and (max-width: 90em) {
+	.title {
+		top: 2em;
+	}
+}
+
+@media screen and (max-width: 45em) {
+	.title {
+		font-size: 12px;
+		top: 3em;
+	}
+}
+
+@media screen and (max-width: 19em) {
+	.title {
+		font-size: 10px;
+	}
+}

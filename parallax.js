@@ -1,20 +1,27 @@
-window.addEventListener(
-  'scroll',
-  (event) => requestAnimationFrame(() => update(window.pageYOffset))
-);
+let elements = $('body').find('.parallax-component');
 
-window.addEventListener(
-  'resize',
-  (event) => requestAnimationFrame(() => updateHeaderHeight())
-);
+// window.addEventListener(
+//   'scroll',
+//   (event) => requestAnimationFrame(() => updateParallaxOffset(window.pageYOffset))
+// );
+
+// window.addEventListener(
+//   'resize',
+//   (event) => requestAnimationFrame(() => updateHeaderHeight())
+// );
+
+$(window).on('scroll', function() {
+   window.requestAnimationFrame(updateParallaxOffset);
+});
+
+$(window).on('resize', function() {
+   window.requestAnimationFrame(updateHeaderHeight);
+});
 
 
-function update(offset) {
-	let elements = $('body').find('.parallax-component');
-	//	TODO this in percentage instead of pixels, if even necessary.
-	//	Get element's x offset. All elements are centered similarly so we don't need to loop this.
-	// let x_offset = $(elements[1]).css('transform');
-	// x_offset = x_offset.split(',')[4];
+
+function updateParallaxOffset() {
+	let offset = window.pageYOffset
 
 	for(let i = 0; i < elements.length; i++) {
 		let depth = elements[i].getAttribute('data-depth');
@@ -33,6 +40,7 @@ $('#background').ready(function() {
 
 //	Update header height to the background parallax layer's height
 function updateHeaderHeight() {
+	//	Constants defined by image proportions
 	let aspect_x = 2560;
 	let aspect_y = 1440;
 	let ratio = aspect_y / aspect_x;
