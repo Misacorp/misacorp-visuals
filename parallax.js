@@ -18,6 +18,18 @@ $(window).on('resize', function() {
    window.requestAnimationFrame(updateHeaderHeight);
 });
 
+//	Change landscape SVG objects to PNG when scrolling.
+
+// $(document).on('scrollstart', function() {
+// 	console.log("Scroll start");
+// 	$('#background').attr('src','img/header/png/00-background.png');		//	Stutters
+// });
+
+// $(document).on('scrollstop', function() {
+// 	console.log("Scroll end");
+// 	$('#background').attr('src','img/header/00-background.svg');			//	Stutters
+// });
+
 
 
 function updateParallaxOffset() {

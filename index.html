@@ -6,33 +6,39 @@
 	<meta name="title" content="Misacorp Visuals">
 	<meta name="description" content="Näyttävät sisällöt näytölle ja nettiin – animoiduista mainosvideoista näppäriin nettisivuihin.">
 
-	<meta name="theme-color" content="#FFD220">
+	<meta name="theme-color" content="#EFE7CE">
 	<meta name="msapplication-navbutton-color" content="#FFD220">
-	<meta name="apple-mobile-web-app-status-bar-style" content="#FFD220">
+	<meta name="apple-mobile-web-app-status-bar-style" content="#EFE7CE">
 
 	<title>Misacorp Visuals</title>
 	<link rel="icon" href="img/logo/misacorp-visuals-yellow-circle-favicon-32.png">
 	<link rel="stylesheet" type="text/css" href="mountainscape.css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="js/jquery.scrollstop.js"></script>
 </head>
 <body>
 
 	<header>
-		<img src="img/header/png/00-background.png" class="parallax-component unselectable" id="background" alt="Water and sky" data-depth="0.80">
-		<div class="title parallax-component" data-depth="0.75">
+		<img src="img/header/png/00-background.png" class="landscape parallax-component unselectable" id="background" alt="Water and sky" data-depth="0.80">
+		<div class="title landscape parallax-component" data-depth="0.75">
 			<img src="img/logo/misacorp-visuals-logo.svg" alt="Misacorp Visuals logo">
 			<h1>Misacorp Visuals</h1>
 			<p>Motion Graphics | Web Design</p>
 			<div class="scroll-down btn unselectable">
 				<div class="highlight"></div>
-				<div class="down-arrow">&#709;</div>
+				<div class="down-arrow">
+					<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+					<title>down-arrow</title>
+					<polyline points="2.12 2.12 25.12 25.12 48.12 2.12" fill-opacity="0" stroke="#fff" stroke-miterlimit="10" stroke-width="8"/>
+					</svg>
+				</div>
 			</div>
 		</div>
-		<img src="img/header/png/01-mountains-1.png" class="parallax-component unselectable" id="mountains-1" alt="Mountain silhouette 1" data-depth="0.70">
-		<img src="img/header/png/02-mountains-2.png" class="parallax-component unselectable" id="mountains-2" alt="Mountain silhouette 2" data-depth="0.55">
-		<img src="img/header/png/03-mountains-3.png" class="parallax-component unselectable" id="mountains-3" alt="Mountain silhouette 3" data-depth="0.38">
-		<img src="img/header/png/04-mountains-4.png" class="parallax-component unselectable" id="mountains-4" alt="Mountain silhouette 4" data-depth="0.14">
-		<img src="img/header/png/05-trees-front.png" class="parallax-component unselectable" id="trees-front" alt="Tree silhouettes" data-depth="0">
+		<img src="img/header/png/01-mountains-1.png" class="landscape parallax-component unselectable" id="mountains-1" alt="Mountain silhouette 1" data-depth="0.70">
+		<img src="img/header/png/02-mountains-2.png" class="landscape parallax-component unselectable" id="mountains-2" alt="Mountain silhouette 2" data-depth="0.55">
+		<img src="img/header/png/03-mountains-3.png" class="landscape parallax-component unselectable" id="mountains-3" alt="Mountain silhouette 3" data-depth="0.38">
+		<img src="img/header/png/04-mountains-4.png" class="landscape parallax-component unselectable" id="mountains-4" alt="Mountain silhouette 4" data-depth="0.14">
+		<img src="img/header/05-trees-front.svg" class="landscape unselectable" id="trees-front" alt="Tree silhouettes">
 	</header>
 
 	<article id="1">
