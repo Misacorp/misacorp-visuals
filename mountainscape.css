@@ -35,9 +35,10 @@ h2 {
 	will-change: unset;
 }
 
-.parallax-component {
+/*  Don't GPU accelerate text elements to avoid bad anti-aliasing  */
+/*.parallax-component {
   	will-change: transform;
-}
+}*/
 
 img.landscape {
 	pointer-events: none;
