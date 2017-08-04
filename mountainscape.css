@@ -31,14 +31,14 @@ h2 {
 	transform: translateX(-50%);
 }
 
+/*  Don't GPU accelerate text elements to avoid bad anti-aliasing  */
 .landscape.title {
 	will-change: unset;
 }
 
-/*  Don't GPU accelerate text elements to avoid bad anti-aliasing  */
-/*.parallax-component {
+.parallax-component {
   	will-change: transform;
-}*/
+}
 
 img.landscape {
 	pointer-events: none;
@@ -71,6 +71,7 @@ article {
 	transition-duration: 0.5s;
 	transition-timing-function: ease-out;
 	transition-delay: 0;
+	will-change: transform, opacity;
 }
 
 .hidden {

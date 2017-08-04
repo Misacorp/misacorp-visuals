@@ -39,9 +39,9 @@ function updateParallaxOffset() {
 		let depth = elements[i].getAttribute('data-depth');
 		let y_offset = offset * depth;
 
-		if(elements[i].getAttribute('id') == 'trees-front') {
-			y_offset = y_offset + 5;
-		}
+		// if(elements[i].getAttribute('id') == 'trees-front') {
+		// 	y_offset = y_offset + 5;
+		// }
 		$(elements[i]).css('transform', `translate(-50%, ${y_offset}px)`);
 	}
 }
