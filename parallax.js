@@ -1,4 +1,12 @@
-let elements = $('body').find('.parallax-component');
+var elements = [];
+
+$('#background').ready(function() {
+	updateHeaderHeight();
+});
+
+$(document).ready(function() {
+	elements = $('body').find('.parallax-component');
+});
 
 // window.addEventListener(
 //   'scroll',
@@ -35,20 +43,38 @@ $(window).on('resize', function() {
 function updateParallaxOffset() {
 	let offset = window.pageYOffset
 
+	//	Degub array for in / out of viewport
+	var in_or_out = [];
+	var debug_string = "";
+
 	for(let i = 0; i < elements.length; i++) {
-		let depth = elements[i].getAttribute('data-depth');
-		let y_offset = offset * depth;
+		let container = $(elements[i]).parents('.parallax-container')[0];
 
-		// if(elements[i].getAttribute('id') == 'trees-front') {
-		// 	y_offset = y_offset + 5;
-		// }
-		$(elements[i]).css('transform', `translate(-50%, ${y_offset}px)`);
+		if(isInViewport(container)) {
+			in_or_out[i] = "IN";
+
+			let depth = elements[i].getAttribute('data-depth');
+			let y_offset = offset * depth;
+
+			// if(elements[i].getAttribute('id') == 'trees-front') {
+			// 	y_offset = y_offset + 5;
+			// }
+			$(elements[i]).css('transform', `translate(-50%, ${y_offset}px)`);
+			$(elements[i]).css('background-color', 'rgba(0,255,0,0.2)');
+			$(elements[i]).css('border', '5px solid black');
+		}
+		else {
+			in_or_out[i] = "OUT";
+			$(elements[i]).css('background-color', 'rgba(255,0,0,0.2)');
+		}
 	}
-}
 
-$('#background').ready(function() {
-	updateHeaderHeight();
-});
+	for(let i = 0; i < in_or_out.length - 1; i++) {
+		debug_string = debug_string + in_or_out[i] + ", ";
+	}
+	debug_string = debug_string + in_or_out[in_or_out.length - 1];
+	console.log(debug_string);
+}
 
 //	Update header height to the background parallax layer's height
 function updateHeaderHeight() {
@@ -61,3 +87,57 @@ function updateHeaderHeight() {
 	let height = Math.ceil($(window).width() * ratio);
 	$('header').height(height + "px");
 };
+
+
+
+function isInViewport(el) {
+//	Source: https://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport
+
+    //	Special bonus for those using jQuery
+    if (typeof jQuery === "function" && el instanceof jQuery) {
+        el = el[0];
+    }
+
+    var rect = el.getBoundingClientRect();
+
+   	//	If viewport top or bottom is inside rect, return true  ---- Only works if rect is larger than viewport!
+   	let viewport_top = 0;
+   	let viewport_bot = viewport_top + $(window).height();
+
+   	let viewport_height = viewport_bot - viewport_top;
+   	let rect_height = rect.bottom - rect.top;
+
+   	let top_inside, bot_inside;
+
+   	//	Viewport is smaller than parallax container.
+   	if(viewport_height <= rect_height) {
+	   	top_inside = rect.top <= viewport_top && viewport_top <= rect.bottom;
+	   	bot_inside = rect.top <= viewport_bot && viewport_bot <= rect.bottom;
+
+	   	if(!top_inside) {
+	   		console.log("Top out of bounds: " + rect.top + " <= " + viewport_top + " <= " + rect.bottom);
+	   	}
+	   	if(!bot_inside) {
+	   		console.log("Bot out of bounds: " + rect.top + " <= " + viewport_bot + " <= " + rect.bottom);
+	   	}
+
+	   	return (top_inside || bot_inside);
+	}
+	
+	//	Parallax container is smaller than viewport.
+	else {
+	   	top_inside = viewport_top < rect.top && rect.top < viewport_bot;
+	   	bot_inside = viewport_top < rect.bottom && rect.bottom < viewport_bot;
+
+	   	if(!top_inside) {
+	   		console.log("Parallax < viewport. Top out of bounds: " + viewport_top + " < " + rect.top + " < " + viewport_bot);
+	   	}
+	   	if(!bot_inside) {
+	   		console.log("Parallax < viewport. Bot out of bounds: " + viewport_top + " < " + rect.bottom + " < " + viewport_bot);
+	   	}
+	   	console.log(top_inside || bot_inside);
+	   	return (top_inside || bot_inside);
+	}
+
+
+}
