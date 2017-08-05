@@ -1,0 +1,239 @@
+@import url('https://fonts.googleapis.com/css?family=Dosis:700|Titillium+Web:300,400,600,700');
+
+* {
+	padding: 0;
+	margin: 0;
+}
+
+body {
+	background-color: #3D3D3D;
+	height: 300rem;
+	font-family: 'Titillium Web', sans-serif;
+}
+
+h1, h2, h3	{
+	font-family: 'Dosis', sans-serif;
+	font-weight: 700;
+}
+
+h2 {
+	font-size: 2.5em;
+}
+
+.landscape {
+	position: absolute;
+	height: 100%;
+	top: 0;
+	left: 50%;
+	-webkit-transform: translateX(-50%);
+	-moz-transform: translateX(-50%);
+	-o-transform: translateX(-50%);
+	transform: translateX(-50%);
+}
+
+/*  Don't GPU accelerate text elements to avoid bad anti-aliasing  */
+.landscape.title {
+	will-change: unset;
+}
+
+.parallax-component {
+  	will-change: transform;
+}
+
+img.landscape {
+	pointer-events: none;
+}
+
+img#trees-front {
+	-webkit-transform: translate(-50%, 5px);
+	-moz-transform: translate(-50%, 5px);
+	-o-transform: translate(-50%, 5px);
+	transform: translate(-50%, 5px);
+}
+
+header {
+	overflow: hidden;
+	position: relative;
+	min-height: 95vh;
+	background-color: #EFE7CE;
+	margin-bottom: 10em;
+}
+
+article {
+	width: 90%;
+	margin-left: auto;
+	margin-right: auto;
+	color: #EFE7CE;
+}
+
+.reveal {
+	transition: transform, opacity;
+	transition-duration: 0.5s;
+	transition-timing-function: ease-out;
+	transition-delay: 0;
+	will-change: transform, opacity;
+}
+
+.hidden {
+	opacity: 0;
+}
+
+.hidden.left {
+	transform: translateX(-15%);
+}
+
+.hidden.right {
+	transform: translateX(15%);
+}
+
+article p:nth-child(2) { transition-delay: 0.1s; }
+article p:nth-child(3) { transition-delay: 0.2s; }
+article p:nth-child(4) { transition-delay: 0.3s; }
+article p:nth-child(5) { transition-delay: 0.4s; }
+article p:nth-child(6) { transition-delay: 0.5s; }
+
+article h2 {
+	text-align: center;
+	padding-top: 1em;
+	margin-bottom: 1em;
+}
+
+article p {
+	margin-bottom: 1em;
+	margin-left: auto;
+	margin-right: auto;
+	width: 70%;
+}
+
+.title {
+	display: block;
+	top: 20%;
+	left: 50%;
+	color: #3D3D3D;
+	text-align: center;
+	width: 90%;
+	transition: font-size;
+	transition-duration: 0.5s;
+	transition-timing-function: ease-out;
+}
+
+.title h1 {
+	display: block;
+    font-size: 3.2em;
+}
+
+.title p {
+    font-size: 1.73em;
+    font-weight: 300;
+}
+
+.title img {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	max-height: 256px;
+	transition: width 0.5s ease-out;
+}
+
+.unselectable {
+	user-drag: none; 
+	user-select: none;
+	-moz-user-select: none;
+	-webkit-user-drag: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+}
+
+.scroll-down {
+	position: relative;
+	display: inline-block;
+	cursor: pointer;
+	width: 1.5em;
+	height: 1.3em;
+	line-height: 1.8em;
+	margin-top: 0.3em;
+	border-radius: 0 0 50% 50%;
+	overflow: hidden;
+
+	font-family: monospace;
+	font-weight: 700;
+	font-size: 2em;
+	background-color: #F0C108;
+	color: white;
+
+	transition: background-color 0.3s;
+}
+
+.scroll-down:hover {
+	background-color: #FFD220;
+}
+
+.scroll-down .down-arrow {
+	width: 50%;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 0;
+}
+
+.scroll-down .highlight {
+	position: absolute;
+	background-color: rgba(255,255,255,0.2);
+	width: 50%;
+	height: 100%;
+}
+
+.bounce {
+	animation: bounce 1.5s infinite alternate ease-in-out; /* IE 10+, Fx 29+ */
+}
+
+
+
+
+@-webkit-keyframes bounce {
+  0%   { -webkit-transform: translate(-50%, -2px); }
+  100% { -webkit-transform: translate(-50%, 2px) }
+}
+@-moz-keyframes bounce {
+  0%   { -moz-transform: translate(-50%, -2px); }
+  100% { -moz-transform: translate(-50%, 2px) }
+}
+@-o-keyframes bounce {
+  0%   { -o-transform: translate(-50%, -2px); }
+  100% { -o-transform: translate(-50%, 2px) }
+}
+@keyframes bounce {
+  0%   { transform: translate(-50%, -2px); }
+  100% { transform: translate(-50%, 2px) }
+}
+
+
+
+
+@media screen and (max-width: 120em) {
+	.title {
+		top: 10%;
+	}
+}
+
+@media screen and (max-width: 90em) {
+	.title {
+		top: 2em;
+	}
+}
+
+@media screen and (max-width: 45em) {
+	.title {
+		font-size: 12px;
+		top: 3em;
+	}
+
+	.title img {
+		width: 40%;
+	}
+}
+
+@media screen and (max-width: 19em) {
+	.title {
+		font-size: 10px;
+	}
+}
