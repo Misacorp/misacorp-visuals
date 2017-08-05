@@ -32,9 +32,9 @@ h2 {
 }
 
 /*  Don't GPU accelerate text elements to avoid bad anti-aliasing  */
-.landscape.title {
+/*.landscape.title {
 	will-change: unset;
-}
+}*/
 
 .parallax-component {
   	will-change: transform;
