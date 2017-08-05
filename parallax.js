@@ -43,46 +43,20 @@ $(window).on('resize', function() {
 function updateParallaxOffset() {
 	let offset = window.pageYOffset //	Get offset from top of parallax container, not entire page.
 
-	//	Degub array for in / out of viewport
-	var in_or_out = [];
-	var debug_string = "";
-
-
-
 	for(let i = 0; i < elements.length; i++) {
 		let container = $(elements[i]).parents('.parallax-container')[0];
 		let offset = container.getBoundingClientRect().top;
 		offset = window.pageYOffset - offset;
-		console.log(offset);
 
 		if(isInViewport(container)) {
-			in_or_out[i] = "IN";
-
 			let depth = elements[i].getAttribute('data-depth');
 			let y_offset = offset * depth;
 
-			//	Debug
 			$(elements[i]).css('transform', `translate(-50%, ${y_offset}px)`);
-			$(elements[i]).css('background-color', 'rgba(0,255,0,0.2)');
-			$(elements[i]).css('border', '5px solid black');
 		}
 		else {
-			//	Debug
-			in_or_out[i] = "OUT";
-			$(elements[i]).css('background-color', 'rgba(255,0,0,0.2)');
 		}
 	}
-
-
-
-	//	Debug start
-	for(let i = 0; i < in_or_out.length - 1; i++) {
-		debug_string = debug_string + in_or_out[i] + ", ";
-	}
-
-	debug_string = debug_string + in_or_out[in_or_out.length - 1];
-	console.log(debug_string);
-	//	Debug end
 }
 
 
