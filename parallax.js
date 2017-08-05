@@ -18,6 +18,9 @@ $(document).ready(function() {
 //   (event) => requestAnimationFrame(() => updateHeaderHeight())
 // );
 
+
+let didScroll = false;
+
 $(window).on('scroll', function() {
    window.requestAnimationFrame(updateParallaxOffset);
 });
@@ -26,27 +29,21 @@ $(window).on('resize', function() {
    window.requestAnimationFrame(updateHeaderHeight);
 });
 
-//	Change landscape SVG objects to PNG when scrolling.
-
-// $(document).on('scrollstart', function() {
-// 	console.log("Scroll start");
-// 	$('#background').attr('src','img/header/png/00-background.png');		//	Stutters
-// });
-
-// $(document).on('scrollstop', function() {
-// 	console.log("Scroll end");
-// 	$('#background').attr('src','img/header/00-background.svg');			//	Stutters
-// });
-
-
-
 function updateParallaxOffset() {
+	didScroll = true;
+}
+
+setInterval(function() {
+	if(didScroll) {
+		didScroll = false;
+	}
+
 	let offset = window.pageYOffset //	Get offset from top of parallax container, not entire page.
 
 	for(let i = 0; i < elements.length; i++) {
 		let container = $(elements[i]).parents('.parallax-container')[0];
 		let offset = container.getBoundingClientRect().top;
-		offset = window.pageYOffset - offset;
+		offset = window.pageYOffset;
 
 		if(isInViewport(container)) {
 			let depth = elements[i].getAttribute('data-depth');
@@ -54,10 +51,8 @@ function updateParallaxOffset() {
 
 			$(elements[i]).css('transform', `translate(-50%, ${y_offset}px)`);
 		}
-		else {
-		}
 	}
-}
+},1);
 
 
 
