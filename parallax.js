@@ -24,8 +24,6 @@ function updateParallaxOffset() {
 	for(let i = 0; i < elements.length; i++) {
 		let container = $(elements[i]).parents('.parallax-container')[0];
 		let offset = container.getBoundingClientRect().top * (-1);
-		// offset = window.pageYOffset - offset;
-		// console.log(window.pageYOffset + " / " + offset);
 
 		if(isInViewport(container)) {
 			let depth = elements[i].getAttribute('data-depth');

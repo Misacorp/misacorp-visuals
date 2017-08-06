@@ -20,6 +20,29 @@ h2 {
 	font-size: 2.5em;
 }
 
+
+/*Begin parallax*/
+.parallax-container {
+	overflow: hidden;
+	position: relative;
+}
+
+.parallax-container.mountainscape {
+	min-height: 95vh;
+	background-color: #EFE7CE;
+}
+
+.parallax-component {
+  	will-change: transform;
+}
+/*End parallax*/
+
+
+/*  Don't GPU accelerate text elements to avoid bad anti-aliasing  */
+/*.landscape.title {
+	will-change: unset;
+}*/
+
 .landscape {
 	position: absolute;
 	height: 100%;
@@ -31,31 +54,18 @@ h2 {
 	transform: translateX(-50%);
 }
 
-/*  Don't GPU accelerate text elements to avoid bad anti-aliasing  */
-/*.landscape.title {
-	will-change: unset;
-}*/
-
-.parallax-component {
-  	will-change: transform;
-}
-
 img.landscape {
 	pointer-events: none;
 }
 
 img#trees-front {
-	-webkit-transform: translate(-50%, 5px);
-	-moz-transform: translate(-50%, 5px);
-	-o-transform: translate(-50%, 5px);
-	transform: translate(-50%, 5px);
+	-webkit-transform: translate(-50%, 2px);
+	-moz-transform: translate(-50%, 2px);
+	-o-transform: translate(-50%, 2px);
+	transform: translate(-50%, 2px);
 }
 
 header {
-	overflow: hidden;
-	position: relative;
-	min-height: 95vh;
-	background-color: #EFE7CE;
 	margin-bottom: 10em;
 }
 
