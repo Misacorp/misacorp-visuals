@@ -1,11 +1,11 @@
-var elements = [];
-
-$('#background').ready(function() {
-	updateHeaderHeight();
-});
+var parallax_components = [];
 
 $(document).ready(function() {
-	elements = $('body').find('.parallax-component');
+	parallax_components = $('body').find('.parallax-component');
+  	let parallax_containers = $(document).find('.parallax-container');
+  	$.each(parallax_containers, function() {
+		updateContainerHeight(this);
+  	});
 });
 
 $(window).on('scroll', function() {
@@ -13,7 +13,12 @@ $(window).on('scroll', function() {
 });
 
 $(window).on('resize', function() {
-   window.requestAnimationFrame(updateHeaderHeight);
+  window.requestAnimationFrame(function() {
+  	let parallax_containers = $(document).find('.parallax-container');
+  	$.each(parallax_containers, function() {
+		updateContainerHeight(this);
+  	});
+  });
 });
 
 
@@ -21,31 +26,34 @@ $(window).on('resize', function() {
 function updateParallaxOffset() {
 	let offset = window.pageYOffset //	Get offset from top of parallax container, not entire page.
 
-	for(let i = 0; i < elements.length; i++) {
-		let container = $(elements[i]).parents('.parallax-container')[0];
+	for(let i = 0; i < parallax_components.length; i++) {
+		let container = $(parallax_components[i]).parents('.parallax-container')[0];
 		let offset = container.getBoundingClientRect().top * (-1);
 
 		if(isInViewport(container)) {
-			let depth = elements[i].getAttribute('data-depth');
+			let depth = parallax_components[i].getAttribute('data-depth');
 			let y_offset = offset * depth;
 
-			$(elements[i]).css('transform', `translate(-50%, ${y_offset}px)`);
-		}
-		else {
+			$(parallax_components[i]).css('transform', `translate(-50%, ${y_offset}px)`);
 		}
 	}
 }
 
+
+
 //	Update header height to the background parallax layer's height
-function updateHeaderHeight() {
-	//	Constants defined by image proportions
-	let aspect_x = 2560;
-	let aspect_y = 1440;
+function updateContainerHeight(elem) {
+	//	Get width and height from data-ids
+	let w = $(elem).attr('data-width');
+	let h = $(elem).attr('data-height');
+	//	Default dimensions to something if not specified
+	let aspect_x = w || 2560;
+	let aspect_y = h || 1440;
 	let ratio = aspect_y / aspect_x;
 
 	//	Header height = viewport width * ratio.
 	let height = Math.ceil($(window).width() * ratio);
-	$('header').height(height + "px");
+	$(elem).height(height + "px");
 }
 
 
