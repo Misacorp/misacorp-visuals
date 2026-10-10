@@ -33,11 +33,11 @@ ADR-lite. Newest at the bottom. Never delete; mark `Superseded by ...`. See `REA
 - Date: 2026-10-10. Status: accepted.
 - Decision: agents work on feature branches and open PRs. Agents never merge PRs or enable auto-merge.
 - Enforced by: `.claude/hooks/guard.mjs` (PreToolUse), `.githooks/pre-push`, deny rules in `.claude/settings.json`, the deploy gate.
-- Why: server-side branch protection is not available. Several independent client-side guards make a mistake or an injected instruction less likely to reach production.
+- Why: server-side branch protection is not configured. Several independent client-side guards make a mistake or an injected instruction less likely to reach production.
 - Limits: these guards are defense in depth, not a sandbox. The owner's review of each PR is the real control.
 
 ### Parallax with CSS scroll-driven animations, rAF fallback
-- Date: 2026-10-10. Status: planned.
-- Decision: implement parallax with `animation-timeline: scroll()`/`view()`. Fall back to a small `requestAnimationFrame` loop where unsupported. Respect `prefers-reduced-motion`.
+- Date: 2026-10-10. Status: accepted (implemented in `src/styles/main.css`, `src/scripts/parallax.js`).
+- Decision: implement parallax with `animation-timeline: scroll(root block)` and an explicit length range equal to the hero height (a `view()` exit range would not start at scrollY 0). Fall back to a small `requestAnimationFrame` loop where unsupported. Respect `prefers-reduced-motion`.
 - Why: off-main-thread animation, no scroll listeners in the common case, small JS.
 - Replaces: the 2017 `parallax.js` scroll handler.

@@ -59,7 +59,7 @@ Rules for the squash message:
 - Keep a small `requestAnimationFrame` fallback for browsers without support.
 
 ## Changes
-- `src/styles/parallax.css`: add `animation-timeline: view()` layers.
+- `src/styles/main.css`: add `animation-timeline: scroll()` layers.
 - `src/scripts/parallax.js`: fallback loop, loaded only when `CSS.supports` fails.
 - `docs/memory/status.md`: mark parallax as done.
 

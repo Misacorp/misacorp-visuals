@@ -23,7 +23,7 @@ Needs Node 22+ (see `.nvmrc`).
 - `src/index.html`, `src/404.html`: pages. Use root-absolute URLs (`/assets/...`); the build hashes and rewrites them.
 - `src/styles/main.css`: all styles. Inlined into `index.html` at build time.
 - `src/scripts/`: `parallax.js` is only a fallback for browsers without CSS scroll-driven animations.
-- `src/assets/`: hero art (SVG, optimised with svgo) and logo. Hashed on build.
+- `src/assets/`: hero art (SVG, optimised once with a pinned one-off `npx svgo@4.0.1 --multipass --precision=1`) and logo. Hashed on build.
 - `public/`: copied as-is (favicons, `og-image.png`, `robots.txt`, `CNAME`). Put anything referenced from JSON-LD here.
 
 The hero parallax is pure CSS (`animation-timeline: scroll()`), so it runs on the compositor with no JavaScript. Layers get a `--depth`; deeper layers lag more and look farther away. It is disabled under `prefers-reduced-motion`.

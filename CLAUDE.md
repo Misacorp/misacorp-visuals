@@ -14,7 +14,7 @@ Node >= 22. Install with `npm ci`.
 - `npm run check`: lint, build, test. Must pass before every push.
 
 ## Layout
-- `src/`: `index.html`, `styles/`, `scripts/`, `assets/`
+- `src/`: `index.html`, `404.html`, `styles/`, `scripts/`, `assets/`
 - `public/`: copied verbatim to `dist/` (CNAME, robots.txt, favicons)
 - `scripts/build.mjs`: the build; `tests/`: tests; `dist/`: output, never commit
 - `.github/workflows/`: `ci.yml` (PRs), `deploy.yml` (push to `main`, merged PRs only)
