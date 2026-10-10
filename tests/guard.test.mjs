@@ -1,4 +1,5 @@
 // Tests for .claude/hooks/guard.mjs (defense-in-depth PreToolUse guard).
+// biome-ignore-all lint/suspicious/noTemplateCurlyInString: shell parameter expansion in test strings
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -6,10 +7,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { evaluate } from '../.claude/hooks/guard.mjs';
+import { evaluate as rawEvaluate } from '../.claude/hooks/guard.mjs';
 
 const GUARD = fileURLToPath(new URL('../.claude/hooks/guard.mjs', import.meta.url));
 const CWD = '/work/repo';
+const evaluate = (input, opts = {}) => rawEvaluate(input, { projectRoot: CWD, ...opts });
 
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command }, cwd: CWD });
 const edit = (file_path, tool_name = 'Edit') => ({
@@ -96,6 +98,167 @@ const cases = [
   ['runtime command name', bash('$GIT push origin main'), true],
   ['sponge into mcp.json', bash('echo x | sponge .mcp.json'), true],
   ['echo piped into bash (harmless)', bash('echo hello | bash'), false],
+  // --- review round 2: ancestors of protected paths
+  ['rm -rf .claude', bash('rm -rf .claude'), true],
+  ['mv .claude away', bash('mv .claude /tmp/x'), true],
+  ['rm -rf project root', bash('rm -rf /work/repo'), true],
+  ['rm -rf parent of project root', bash('rm -rf /work'), true],
+  ['rm -rf .', bash('rm -rf .'), true],
+  ['rm -rf ..', bash('rm -rf ..'), true],
+  ['rm -rf /', bash('rm -rf /'), true],
+  ['chmod -R on project root', bash('chmod -R 777 .'), true],
+  ['git rm -r .claude', bash('git rm -r .claude'), true],
+  ['cp over .claude dir', bash('cp -r /tmp/evil .claude'), true],
+  ['cp into parent of root', bash('cp -r /tmp/evil /work'), true],
+  ['rsync --delete into root', bash('rsync -a --delete /tmp/x/ ./'), true],
+  ['find . -delete', bash('find . -delete'), true],
+  ['find . -name -delete without exclusion', bash("find . -name '*.tmp' -delete"), true],
+  ['find .claude -name -delete', bash('find .claude -name guard.mjs -delete'), true],
+  ['find dist -delete is fine', bash('find dist -name "*.map" -delete'), false],
+  [
+    'find . with exclusion is fine',
+    bash("find . -path ./.git -prune -o -name '*.tmp' -delete"),
+    false,
+  ],
+  ['cp file into project root is fine', bash('cp /tmp/logo.png .'), false],
+  ['mkdir/touch in root is fine', bash('touch notes.txt'), false],
+  // --- DoS and size
+  ['oversized command fails closed', bash(`echo ${'gh pr '.repeat(9000)}`), true],
+  ['sed -i on a file in src', bash('sed -i s/a/b/ src/index.html'), false],
+  // --- graphql
+  ['graphql query from variable', bash('gh api graphql -f query="$Q"'), true],
+  ['graphql query=$Q', bash('gh api graphql -f "query=$Q"'), true],
+  ['graphql query from backticks', bash('gh api graphql -f query=`cat q.graphql`'), true],
+  [
+    'graphql literal variables in single quotes',
+    bash(
+      'gh api graphql -f query=\'query($o:String!){ repository(owner:$o,name:"x"){ id } }\' -F o=Misacorp',
+    ),
+    false,
+  ],
+  // --- xargs
+  ['xargs rm', bash('echo .mcp.json | xargs rm'), true],
+  ['xargs touch', bash('echo .mcp.json | xargs touch'), true],
+  ['xargs rm < list', bash('xargs rm < list.txt'), true],
+  ['xargs sed -i', bash('ls | xargs sed -i s/a/b/'), true],
+  ['xargs cat is fine', bash('git ls-files | xargs cat'), false],
+  ['xargs grep is fine', bash('git ls-files | xargs grep -n TODO'), false],
+  // --- target-directory forms
+  ['cp -t', bash('cp -t .claude/hooks /tmp/x'), true],
+  ['cp -rt', bash('cp -rt .claude/hooks /tmp/x'), true],
+  ['cp -vt', bash('cp -vt .githooks /tmp/x'), true],
+  ['cp -tDIR attached', bash('cp -t.claude/hooks /tmp/x'), true],
+  ['cp --target-directory=DIR', bash('cp --target-directory=.claude/hooks /tmp/x'), true],
+  ['cp --target-directory DIR', bash('cp --target-directory .githooks /tmp/x'), true],
+  ['install -Dt', bash('install -Dt .claude/hooks /tmp/x'), true],
+  ['mv --target-directory=', bash('mv --target-directory=.githooks /tmp/x'), true],
+  ['mv -t', bash('mv -t .git/hooks /tmp/x'), true],
+  ['cp -t into docs is fine', bash('cp -t docs/memory /tmp/x'), false],
+  ['cp -r is fine', bash('cp -r /tmp/x src/assets'), false],
+  // --- curl/wget outputs
+  ['curl -o attached', bash('curl -o.mcp.json https://x.example'), true],
+  ['curl -sSo cluster', bash('curl -sSo .mcp.json https://x.example'), true],
+  ['curl --output=', bash('curl --output=.mcp.json https://x.example'), true],
+  ['curl --output-dir', bash('curl --output-dir .claude/hooks -O https://x.example/a'), true],
+  ['wget -O attached', bash('wget -O.mcp.json https://x.example'), true],
+  ['wget --output-document=', bash('wget --output-document=.mcp.json https://x.example'), true],
+  ['wget --output-document sep', bash('wget --output-document .mcp.json https://x.example'), true],
+  ['wget -P protected dir', bash('wget -P .claude/hooks https://x.example/a'), true],
+  [
+    'curl -o to /tmp is fine',
+    bash('curl -o /tmp/robots.txt https://example.com/robots.txt'),
+    false,
+  ],
+  ['curl -sSL -O to cwd is fine', bash('curl -sSL -O https://example.com/a.txt'), false],
+  // --- checkout/switch tracking
+  [
+    'checkout --track origin/main then push',
+    bash('git checkout --track origin/main && git push'),
+    true,
+    'feat',
+  ],
+  [
+    'checkout -t origin/master then push',
+    bash('git checkout -t origin/master && git push'),
+    true,
+    'feat',
+  ],
+  [
+    'switch --track origin/main then push',
+    bash('git switch --track origin/main && git push'),
+    true,
+    'feat',
+  ],
+  [
+    'switch feat on master then push is allowed',
+    bash('git switch feat && git push'),
+    false,
+    'master',
+  ],
+  ['switch -c then push', bash('git switch -c feat/new && git push -u origin HEAD'), false, 'main'],
+  ['switch - then push fails closed', bash('git switch - && git push'), true, 'feat'],
+  ['switch main then push', bash('git switch main && git push'), true, 'feat'],
+  // --- inline code path building
+  [
+    'node path.join to settings',
+    bash(`node -e "fs.writeFileSync(path.join('.claude','settings.json'),'x')"`),
+    true,
+  ],
+  [
+    'node path.join to hooks',
+    bash(`node -e "fs.writeFileSync(path.join('.claude', 'hooks', 'guard.mjs'),'')"`),
+    true,
+  ],
+  [
+    'node reading settings is fine',
+    bash(`node -e "console.log(fs.readFileSync('.claude/settings.json','utf8'))"`),
+    false,
+  ],
+  // --- MCP prefixes
+  [
+    'plugin-prefixed github merge',
+    { tool_name: 'mcp__plugin_github_github__merge_pull_request', tool_input: {}, cwd: CWD },
+    true,
+  ],
+  [
+    'plugin-prefixed github push_files master',
+    {
+      tool_name: 'mcp__plugin_github_github__push_files',
+      tool_input: { branch: 'master', files: [] },
+      cwd: CWD,
+    },
+    true,
+  ],
+  [
+    'plugin-prefixed github read is fine',
+    {
+      tool_name: 'mcp__plugin_github_github__get_file_contents',
+      tool_input: { path: 'a' },
+      cwd: CWD,
+    },
+    false,
+  ],
+  // --- variable defaults and loops
+  ['${B:-main} refspec', bash('git push origin ${B:-main}'), true],
+  ['${B-master} refspec', bash('git push origin ${B-master}'), true],
+  ['${B:-feat} refspec is fine', bash('git push origin ${NO_SUCH_VAR_X:-feat}'), false],
+  [
+    'for loop over branches incl. main',
+    bash('for b in feat main; do git push origin $b; done'),
+    true,
+  ],
+  [
+    'for loop over feature branches',
+    bash('for b in feat feat2; do git push origin "$b"; done'),
+    false,
+  ],
+  [
+    'for loop over runtime list',
+    bash('for b in $(git branch --format="%(refname:short)"); do git push origin $b; done'),
+    true,
+  ],
+  ['for loop writing protected file', bash('for f in .mcp.json; do echo x > $f; done'), true],
+  ['for loop harmless', bash('for f in a b; do echo $f > /tmp/$f; done'), false],
   // --- git config / remote / refs
   ['config hooksPath elsewhere', bash('git config core.hooksPath /dev/null'), true],
   ['config hooksPath .githooks', bash('git config core.hooksPath .githooks'), false],
@@ -328,7 +491,10 @@ describe('guard.evaluate with real files', () => {
   symlinkSync(path.join(root, '.mcp.json'), path.join(root, 'innocent.txt'));
 
   const run = (command) =>
-    evaluate({ tool_name: 'Bash', tool_input: { command }, cwd: root }, { currentBranch: 'feat' });
+    evaluate(
+      { tool_name: 'Bash', tool_input: { command }, cwd: root },
+      { currentBranch: 'feat', projectRoot: root },
+    );
 
   test('blocks glob that matches a protected file', () => {
     assert.equal(run('rm .mcp.js*').block, true);
@@ -341,10 +507,75 @@ describe('guard.evaluate with real files', () => {
   });
   test('blocks Edit through a symlink', () => {
     const input = { tool_name: 'Edit', tool_input: { file_path: 'innocent.txt' }, cwd: root };
-    assert.equal(evaluate(input).block, true);
+    assert.equal(evaluate(input, { projectRoot: root }).block, true);
   });
   test('blocks redirect through a symlink', () => {
     assert.equal(run('echo x > innocent.txt').block, true);
+  });
+});
+
+describe('guard hardening', () => {
+  const timed = (command) => {
+    const t0 = performance.now();
+    const res = evaluate(bash(command));
+    return { res, ms: performance.now() - t0 };
+  };
+
+  test('50 KB adversarial input is rejected quickly', () => {
+    for (const unit of ['gh pr ', 'git ', '$(', '{a,', '"']) {
+      const { res, ms } = timed(`node -e "${unit.repeat(Math.ceil(50_000 / unit.length))}"`);
+      assert.equal(res.block, true, unit);
+      assert.ok(ms < 200, `${JSON.stringify(unit)} took ${ms.toFixed(1)} ms`);
+    }
+  });
+
+  test('adversarial input just under the size cap is checked in bounded time', () => {
+    const units = ['gh pr ', 'git ', 'git push ', '$(', '{a,', '`', '<<', "'"];
+    for (const unit of units) {
+      const body = unit.repeat(Math.floor(19_000 / unit.length));
+      for (const command of [`node -e "${body}"`, `echo ${body}`, `rm ${body.slice(0, 4000)}`]) {
+        const { ms } = timed(command);
+        assert.ok(ms < 200, `${JSON.stringify(unit)} took ${ms.toFixed(1)} ms`);
+      }
+    }
+  });
+
+  test('the script exits 2 quickly on a 50 KB command', () => {
+    const t0 = performance.now();
+    const r = spawnSync(process.execPath, [GUARD], {
+      input: JSON.stringify(bash(`echo ${'gh pr '.repeat(9000)}`)),
+      encoding: 'utf8',
+    });
+    assert.equal(r.status, 2, r.stderr);
+    assert.match(r.stderr, /too long/);
+    assert.ok(performance.now() - t0 < 2000);
+  });
+
+  test('settings.json fails closed and covers every MCP prefix', async () => {
+    const { readFileSync } = await import('node:fs');
+    const settings = JSON.parse(
+      readFileSync(new URL('../.claude/settings.json', import.meta.url), 'utf8'),
+    );
+    const entry = settings.hooks.PreToolUse[0];
+    const hook = entry.hooks[0];
+    assert.match(hook.command, /guard\.mjs"? \|\| exit 2$/);
+    assert.equal(hook.timeout, 5);
+    const matcher = new RegExp(`^(${entry.matcher})$`);
+    for (const tool of [
+      'Bash',
+      'Edit',
+      'Write',
+      'MultiEdit',
+      'NotebookEdit',
+      'mcp__github__push_files',
+      'mcp__plugin_github_github__merge_pull_request',
+    ]) {
+      assert.ok(matcher.test(tool), tool);
+    }
+    assert.ok(!matcher.test('Read'));
+    for (const rule of ['mcp__github__merge_pull_request', 'mcp__github__delete_file']) {
+      assert.ok(settings.permissions.deny.includes(rule), rule);
+    }
   });
 });
 

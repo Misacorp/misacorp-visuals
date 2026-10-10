@@ -14,23 +14,34 @@
  * fed back to the model, so every reason says what to do instead.
  * Unparseable input fails closed. Unknown tools are allowed.
  *
- * Exported for tests: evaluate(input, { currentBranch }).
+ * Exported for tests: evaluate(input, { currentBranch, projectRoot }).
+ *   projectRoot: defaults to $CLAUDE_PROJECT_DIR, else the nearest parent of cwd with .git or .claude
  *   currentBranch: string | null | (dir) => string | null
  *   null/unknown makes implicit `git push` fail closed.
  *
  * Layout: path rules -> shell scanner -> per-command checks -> MCP checks -> main.
  */
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 
 export const PROTECTED_BRANCHES = ['main', 'master', 'gh-pages'];
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const GITHUB_MCP_DENY = new Set(['merge_pull_request', 'enable_pr_auto_merge', 'delete_file']);
 const MAX_DEPTH = 6;
+const MAX_COMMAND_LENGTH = 20_000; // longer commands cannot be verified in time
+const HARD_TIMEOUT_MS = 4000; // the hook is killed at 5 s by settings; fail closed before that
+
+// Single-quoted and escaped `$` / backtick are literal text. The scanner stores them as these
+// placeholders so DYNAMIC and expandVars ignore them; restore with raw() before re-parsing.
+const LIT_DOLLAR = '\uE000';
+const LIT_TICK = '\uE001';
+const lit = (s) => s.replaceAll('$', LIT_DOLLAR).replaceAll('`', LIT_TICK);
+const raw = (s) => s.replaceAll(LIT_DOLLAR, '$').replaceAll(LIT_TICK, '`');
 
 class Block extends Error {}
 const deny = (msg) => {
@@ -111,8 +122,14 @@ function secretReason(abs) {
 
 const DYNAMIC = /\$|`/;
 
+/** Expands $VAR, ${VAR}, ${VAR:-default}, ${VAR-default}. Unknown variables stay as they are. */
 function expandVars(s, vars) {
-  return s.replace(/\$(?:\{(\w+)\}|(\w+))/g, (m, a, b) => vars[a ?? b] ?? process.env[a ?? b] ?? m);
+  return s.replace(/\$(?:\{(\w+)(?::?-([^}$`]*))?\}|(\w+))/g, (m, a, dflt, b) => {
+    const k = a ?? b;
+    const v = vars[k] ?? process.env[k];
+    if (v !== undefined && v !== '') return v;
+    return dflt !== undefined ? dflt : v === '' ? '' : m;
+  });
 }
 
 /** Minimal `{a,b}` expansion (comma form only), capped. */
@@ -168,13 +185,42 @@ function expandGlob(abs) {
   return acc;
 }
 
+const GUARDED_DIRS = new Set(['.claude', '.githooks', '.git']);
+
+/** Nearest parent of `dir` that holds .git or .claude; falls back to `dir`. */
+function findProjectRoot(dir) {
+  for (let d = dir; ; d = path.dirname(d)) {
+    if (existsSync(path.join(d, '.git')) || existsSync(path.join(d, '.claude'))) return d;
+    if (path.dirname(d) === d) return dir;
+  }
+}
+
+/**
+ * Why destroying or moving `abs` would remove protected files, or null.
+ * Covers the guarded directories themselves and the project root and its parents.
+ * `includeRoot: false` still blocks the root's parents (used for copy destinations,
+ * where `cp file .` is routine).
+ */
+function ancestorReason(abs, root, includeRoot) {
+  const base = path.basename(abs).toLowerCase();
+  if (GUARDED_DIRS.has(base)) return `the ${base}/ directory, which holds protected files`;
+  const isAncestor = abs === root || root.startsWith(abs.endsWith('/') ? abs : `${abs}/`);
+  if (isAncestor && (includeRoot || abs !== root)) {
+    return 'the project root or one of its parents, which contains protected files';
+  }
+  return null;
+}
+
 /**
  * Throws if writing to `arg` would touch a protected path.
  * literal: true for Edit/Write tools, where the path is exact (no shell expansion).
  * strict: true rejects paths computed at runtime ($VAR, $(...)) because they cannot be checked.
+ * destroy: 'all' | 'dest' also rejects removing/moving/replacing a protected path's ancestor
+ *   (.claude, .githooks, .git, the project root and its parents). 'dest' allows the root itself.
  */
-function assertWritable(arg, ctx, { literal = false, strict = true } = {}) {
+function assertWritable(arg, ctx, { literal = false, strict = true, destroy = false } = {}) {
   let candidates;
+  if (arg.length > 4096) deny('Path argument is too long to verify.');
   if (literal) {
     candidates = [resolvePath(arg, ctx.dir)];
   } else {
@@ -190,12 +236,25 @@ function assertWritable(arg, ctx, { literal = false, strict = true } = {}) {
     candidates = braceExpand(expanded).flatMap((a) => expandGlob(resolvePath(a, ctx.dir)));
   }
   for (const abs of candidates.slice(0, 1000)) {
-    const why = protectedReason(abs) ?? protectedReason(realish(abs));
+    const real = realish(abs);
+    const why = protectedReason(abs) ?? protectedReason(real);
     if (why) {
       deny(
         `Writing to "${arg}" is not allowed: it is ${why}. These files are owner-controlled. ` +
           'Do not edit them. Describe the change you need in the PR description or ask the owner.',
       );
+    }
+    if (destroy) {
+      const includeRoot = destroy === 'all';
+      const anc =
+        ancestorReason(abs, ctx.root, includeRoot) ??
+        ancestorReason(real, ctx.realRoot, includeRoot);
+      if (anc) {
+        deny(
+          `Removing, moving or replacing "${arg}" is not allowed: it is ${anc}. ` +
+            'Delete only specific files inside src/, dist/, docs/ or tests/.',
+        );
+      }
     }
   }
 }
@@ -279,13 +338,13 @@ function scan(src) {
     if (c === '\\') {
       if (d === '\n') i += 2;
       else {
-        push(d ?? '');
+        push(lit(d ?? ''));
         i += 2;
       }
     } else if (c === "'") {
       const j = src.indexOf("'", i + 1);
       const end = j < 0 ? n : j;
-      push(src.slice(i + 1, end));
+      push(lit(src.slice(i + 1, end)));
       i = end + 1;
     } else if (c === '"') {
       i = readDouble(src, i, push, nested);
@@ -380,7 +439,7 @@ function readDouble(src, start, push, nested) {
   while (i < src.length && src[i] !== '"') {
     const c = src[i];
     if (c === '\\' && i + 1 < src.length) {
-      push('"\\$`'.includes(src[i + 1]) ? src[i + 1] : c + src[i + 1]);
+      push('"\\$`'.includes(src[i + 1]) ? lit(src[i + 1]) : c + src[i + 1]);
       i += 2;
     } else if (c === '$' && src[i + 1] === '(') {
       const close = matchParen(src, i + 1);
@@ -467,9 +526,9 @@ const mutateAll = new Set([
 ]);
 const mutateDest = new Set(['cp', 'install', 'rsync', 'ln']);
 const WRITEISH =
-  /writeFile|appendFile|createWriteStream|copyFile|rename|unlink|rmSync|\brm\b|truncate|symlink|\.write\(|write_text|write_bytes|shutil|os\.(remove|rename|unlink|system)|open\s*\([^)]*['"][wa+]|\b(exec|execSync|spawn|spawnSync|system|popen|subprocess)\b/;
+  /writeFile|appendFile|createWriteStream|copyFile|rename|unlink|rmSync|\brm\b|truncate|symlink|\.write\(|write_text|write_bytes|shutil|os\.(remove|rename|unlink|system)|open\s*\([^)]{0,200}['"][wa+]|\b(exec|execSync|spawn|spawnSync|system|popen|subprocess)\b/;
 const PROTECTED_STRING =
-  /(^|[\\/'"\s=])(\.?mcp\.json|\.claude\.json|\.claude[\\/](settings(\.local|\.proposed)?\.json|hooks)|\.githooks|\.git[\\/])/i;
+  /(^|[\\/'"\s=])(\.?mcp\.json|\.claude\.json|\.claude[\\/](settings(\.local|\.proposed)?\.json|hooks)|\.githooks|\.git[\\/])|['"]\.(claude|git)['"]\s*,\s*['"](settings|hooks|config)/i;
 
 const baseName = (w) => path.basename(w ?? '');
 
@@ -481,15 +540,54 @@ function makeCtx(cwd, opts) {
     if (!cache.has(dir)) cache.set(dir, cb(dir));
     return cache.get(dir);
   };
-  return { dir: cwd, vars: {}, branchOf, branchOverride: undefined };
+  const root = path.resolve(
+    opts.projectRoot ?? process.env.CLAUDE_PROJECT_DIR ?? findProjectRoot(cwd),
+  );
+  return { dir: cwd, root, realRoot: realish(root), vars: {}, branchOf, branchOverride: undefined };
 }
 
 function checkBash(cmd, ctx, depth = 0) {
   if (depth > MAX_DEPTH) deny('Command nesting is too deep to inspect. Simplify the command.');
   const { segs, nested } = scan(cmd);
   for (const inner of nested) checkBash(inner, { ...ctx, vars: { ...ctx.vars } }, depth + 1);
+  runSegments(segs, ctx, depth);
+}
+
+const firstWord = (seg) => seg.tokens.find((t) => t.t === 'w')?.v;
+
+/** `for NAME in a b c`: returns { name, values } (values empty when not literal). */
+function parseForLoop(seg, ctx) {
+  const w = seg.tokens.filter((t) => t.t === 'w').map((t) => t.v);
+  if (w[0] !== 'for' || w[2] !== 'in' || !/^\w+$/.test(w[1] ?? '')) return null;
+  const values = w
+    .slice(3)
+    .map((v) => expandVars(v, ctx.vars))
+    .flatMap((v) => braceExpand(v));
+  return { name: w[1], values: values.some((v) => DYNAMIC.test(v)) ? [] : values.slice(0, 20) };
+}
+
+/** Runs segments in order. `for` loop bodies run once per literal value so the loop variable is known. */
+function runSegments(segs, ctx, depth) {
   let pipeline = [];
-  for (const seg of segs) {
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i];
+    const loop = firstWord(seg) === 'for' ? parseForLoop(seg, ctx) : null;
+    if (loop) {
+      let j = i + 1;
+      for (let nest = 1; j < segs.length; j++) {
+        const f = firstWord(segs[j]);
+        if (f === 'for' || f === 'while' || f === 'until') nest++;
+        else if (f === 'done' && --nest === 0) break;
+      }
+      const body = segs.slice(i + 1, j);
+      for (const value of loop.values.length ? loop.values : [undefined]) {
+        const inner = { ...ctx, vars: { ...ctx.vars } };
+        if (value !== undefined) inner.vars[loop.name] = value;
+        runSegments(body, inner, depth);
+      }
+      i = j;
+      continue;
+    }
     if (seg.sep !== '|') pipeline = [];
     pipeline.push(checkSegment(seg, ctx, depth, pipeline));
   }
@@ -595,7 +693,7 @@ function checkSegment(seg, ctx, depth, pipeline) {
   else if (INTERPRETERS.has(cmd)) checkInterpreter(cmd, args, seg, ctx, pipeline);
   else if (cmd === 'curl' || cmd === 'wget') checkFetch(args, ctx);
   else if (cmd === 'npm' || cmd === 'pnpm' || cmd === 'yarn' || cmd === 'npx') checkNpm(cmd, args);
-  else checkMutation(cmd, args, ctx);
+  else checkMutation(cmd, args, ctx, viaXargs);
   return { cmd, args };
 }
 
@@ -607,35 +705,79 @@ const nonFlags = (args) => {
   ];
 };
 
+/** Values of `-t DIR`, `-rt DIR`, `-tDIR`, `--target-directory DIR` and `--target-directory=DIR`. */
+function targetDirs(args, { short = true } = {}) {
+  const out = [];
+  args.forEach((a, i) => {
+    if (a === '--') return;
+    if (a === '--target-directory') out.push(args[i + 1]);
+    else if (a.startsWith('--target-directory=')) out.push(a.slice(19));
+    else if (short && /^-[A-Za-z]*t/.test(a) && !a.startsWith('--')) {
+      const rest = a.slice(a.indexOf('t', 1) + 1);
+      out.push(rest || args[i + 1]);
+    }
+  });
+  return out.filter((x) => typeof x === 'string' && x !== '');
+}
+
+const hasSedInPlace = (args) =>
+  args.some(
+    (a) => a === '--in-place' || a.startsWith('--in-place=') || /^-(?!-)[A-Za-z]*i/.test(a),
+  );
+
 /** Clearly mutating coreutils-style commands with a protected path argument. */
-function checkMutation(cmd, args, ctx) {
+function checkMutation(cmd, args, ctx, viaXargs = false) {
+  const mutating =
+    cmd === 'tee' ||
+    cmd === 'dd' ||
+    mutateAll.has(cmd) ||
+    mutateDest.has(cmd) ||
+    (cmd === 'sed' && hasSedInPlace(args));
+  if (viaXargs && mutating) {
+    deny(
+      `\`xargs ${cmd}\` takes its targets from stdin, so the guard cannot verify them. Pass literal paths instead.`,
+    );
+  }
   if (cmd === 'tee') for (const a of nonFlags(args)) assertWritable(a, ctx);
-  else if (mutateAll.has(cmd)) for (const a of nonFlags(args)) assertWritable(a, ctx);
-  else if (mutateDest.has(cmd)) {
+  else if (mutateAll.has(cmd)) {
+    const destroy = cmd === 'touch' || cmd === 'mkdir' ? false : 'all';
+    for (const a of [...nonFlags(args), ...(cmd === 'mv' ? targetDirs(args) : [])])
+      assertWritable(a, ctx, { destroy });
+  } else if (mutateDest.has(cmd)) {
     const files = nonFlags(args);
-    if (files.length) assertWritable(files.at(-1), ctx);
-    args.forEach((a, i) => {
-      if (a === '-t' && args[i + 1]) assertWritable(args[i + 1], ctx);
-      else if (a.startsWith('--target-directory=')) assertWritable(a.slice(19), ctx);
-    });
+    const destroy = args.some((a) => /^--(delete|remove-source)/.test(a)) ? 'all' : 'dest';
+    if (files.length) assertWritable(files.at(-1), ctx, { destroy });
+    for (const d of targetDirs(args, { short: cmd !== 'rsync' }))
+      assertWritable(d, ctx, { destroy });
   } else if (cmd === 'dd') {
     for (const a of args) if (a.startsWith('of=')) assertWritable(a.slice(3), ctx);
   } else if (cmd === 'sed') {
-    if (
-      args.some(
-        (a) => a === '--in-place' || a.startsWith('--in-place=') || /^-(?!-)[A-Za-z]*i/.test(a),
-      )
-    ) {
-      for (const a of nonFlags(args)) assertWritable(a, ctx, { strict: false });
+    if (hasSedInPlace(args)) {
+      for (const a of nonFlags(args)) assertWritable(a, ctx, { strict: false, destroy: 'all' });
     }
   } else if (cmd === 'awk' || cmd === 'gawk') {
     if (args.includes('inplace'))
       for (const a of nonFlags(args)) assertWritable(a, ctx, { strict: false });
-  } else if (cmd === 'find') {
-    if (args.some((a) => a === '-delete' || /^-(exec|execdir|ok|okdir)$/.test(a))) {
-      for (const a of args.filter((x) => !x.startsWith('-') && !/^[()!]/.test(x)))
-        assertWritable(a, ctx, { strict: false });
+  } else if (cmd === 'find') checkFind(args, ctx);
+}
+
+function checkFind(args, ctx) {
+  if (!args.some((a) => a === '-delete' || /^-(exec|execdir|ok|okdir)$/.test(a))) return;
+  const starts = [];
+  for (const x of args) {
+    if (/^-[HLP]$/.test(x)) continue;
+    if (x.startsWith('-') || /^[()!]/.test(x)) break;
+    starts.push(x);
+  }
+  // A broad start (project root or a parent) needs an exclusion, otherwise -delete can reach protected files.
+  const excluded =
+    args.includes('-prune') ||
+    (args.some((x) => x === '-not' || x === '!') && args.includes('-path'));
+  for (const a of starts) {
+    if (excluded && GUARDED_DIRS.has(path.basename(resolvePath(a, ctx.dir)).toLowerCase())) {
+      deny(`find -delete/-exec on "${a}" would remove protected files.`);
     }
+    assertWritable(a, ctx, { strict: false, destroy: excluded ? false : 'all' });
   }
 }
 
@@ -649,7 +791,7 @@ function checkPipedScript(cmd, args, seg, pipeline, inspect) {
       'Piping downloaded content into a shell/interpreter is not allowed. Download, review, then run explicitly.',
     );
   const prev = pipeline.at(-1);
-  if (prev && (prev.cmd === 'echo' || prev.cmd === 'printf')) inspect(prev.args.join(' '));
+  if (prev && (prev.cmd === 'echo' || prev.cmd === 'printf')) inspect(raw(prev.args.join(' ')));
   else
     deny(
       `Piping a script into \`${cmd}\` cannot be inspected. Write it to a file in the PR or run the commands directly.`,
@@ -666,10 +808,10 @@ function checkShell(cmd, args, seg, ctx, depth, pipeline) {
     deny('Executing downloaded content is not allowed.');
   const inspect = (script) => checkBash(script, { ...ctx, vars: { ...ctx.vars } }, depth + 1);
   let script;
-  if (cmd === 'eval') script = args.join(' ');
+  if (cmd === 'eval') script = raw(args.join(' '));
   else if (SHELLS.has(cmd)) {
     const i = args.findIndex((a) => /^-(?!-)[A-Za-z]*c/.test(a));
-    if (i >= 0) script = args.slice(i + 1).find((a) => !a.startsWith('-'));
+    if (i >= 0) script = raw(args.slice(i + 1).find((a) => !a.startsWith('-')) ?? '');
     checkPipedScript(cmd, args, seg, pipeline, inspect);
     for (const body of seg.heredocs) inspect(body);
   }
@@ -682,10 +824,11 @@ function checkCode(code) {
       'Inline code that appears to write to a protected file (MCP config, Claude settings/hooks, .githooks, .git) is not allowed.',
     );
   }
-  if (/\bgit\b[^\n]*\bpush\b/.test(code) && /\b(main|master|gh-pages)\b/i.test(code)) {
+  if (/\bgit\b[^\n]{0,200}\bpush\b/.test(code) && /\b(main|master|gh-pages)\b/i.test(code)) {
     deny(`Inline code that appears to push to a protected branch is not allowed. ${PUSH_HINT}`);
   }
-  if (/\bgh\b[^\n]*\bpr\b[^\n]*\bmerge\b/.test(code)) deny("Merging PRs is the owner's job.");
+  if (/\bgh\b[^\n]{0,100}\bpr\b[^\n]{0,100}\bmerge\b/.test(code))
+    deny("Merging PRs is the owner's job.");
 }
 
 function checkInterpreter(cmd, args, seg, ctx, pipeline) {
@@ -693,7 +836,7 @@ function checkInterpreter(cmd, args, seg, ctx, pipeline) {
   if ((cmd === 'perl' || cmd === 'ruby') && args.some((a) => /^-(?!-)[A-Za-z]*i/.test(a))) {
     for (const a of nonFlags(args)) assertWritable(a, ctx, { strict: false });
   }
-  checkCode([...args, ...seg.heredocs].join('\n'));
+  checkCode(raw([...args, ...seg.heredocs].join('\n')));
 }
 
 const FETCH_WRITE_FLAG =
@@ -707,17 +850,29 @@ function isNonGetMethod(args) {
   });
 }
 
+/** Output file or directory options of curl and wget, in separate, attached and long forms. */
+function fetchOutputs(args) {
+  const out = [];
+  const longOpt = /^--(output|output-document|output-dir|directory-prefix|dump-header)(=(.*))?$/;
+  args.forEach((a, i) => {
+    if (a === '--') return;
+    const m = longOpt.exec(a);
+    if (m) out.push(m[2] !== undefined ? m[3] : args[i + 1]);
+    else if (!a.startsWith('--')) {
+      const s = /^-[A-Za-z]*?([oOPD])(.*)$/.exec(a);
+      if (s) out.push(s[2] || args[i + 1]);
+    }
+  });
+  return out.filter((x) => typeof x === 'string' && x !== '');
+}
+
 function checkFetch(args, ctx) {
   if (/(^|[/.@])(api|uploads)\.github\.com/.test(args.join(' '))) {
     if (args.some((a) => FETCH_WRITE_FLAG.test(a)) || isNonGetMethod(args)) {
       deny('Writing to the GitHub API with curl/wget is not allowed. Use the GitHub MCP tools.');
     }
   }
-  args.forEach((a, i) => {
-    if (/^(-o|--output|-O|--output-document)$/.test(a) && args[i + 1])
-      assertWritable(args[i + 1], ctx);
-    else if (a.startsWith('--output=')) assertWritable(a.slice(9), ctx);
-  });
+  for (const target of fetchOutputs(args)) assertWritable(target, ctx);
 }
 
 const NPM_BLOCKED = new Set([
@@ -820,11 +975,11 @@ function checkGit(args, ctx, viaXargs = false) {
       break;
     case 'checkout':
     case 'switch':
-      trackCheckout(g.rest, ctx);
+      trackCheckout(g.sub, g.rest, ctx);
       break;
     case 'rm':
     case 'mv':
-      for (const a of nonFlags(g.rest)) assertWritable(a, gctx);
+      for (const a of nonFlags(g.rest)) assertWritable(a, gctx, { destroy: 'all' });
       break;
     default:
   }
@@ -963,17 +1118,26 @@ function checkBranch(rest) {
     );
 }
 
-/** After `git checkout/switch` in the same command line, the current branch changes. */
-function trackCheckout(rest, ctx) {
+/**
+ * After `git checkout/switch` in the same command line, the current branch changes.
+ * `switch` is unambiguous, so any target updates the tracked branch. For `checkout` the
+ * first positional may be a file, so only protected names are tracked.
+ */
+function trackCheckout(sub, rest, ctx) {
   const create = rest.findIndex((a) => ['-b', '-B', '-c', '-C'].includes(a));
+  const track = rest.some((a) => a === '-t' || a === '--track' || a.startsWith('--track='));
+  const detach = rest.some((a) => a === '-d' || a === '--detach');
   let target;
   if (create >= 0) target = rest[create + 1];
   else {
     const dd = rest.indexOf('--');
     target = (dd < 0 ? rest : rest.slice(0, dd)).find((a) => !a.startsWith('-'));
-    if (target && !isProtectedBranch(target)) target = undefined;
+    if (target && track) target = target.replace(/^[^/]+\//, ''); // origin/main -> main
+    if (sub === 'switch') {
+      if (detach || target === undefined || target === '-') target = null; // unknown: fail closed
+    } else if (target && !isProtectedBranch(target)) target = undefined;
   }
-  if (target) ctx.branchOverride = target;
+  if (target !== undefined) ctx.branchOverride = target;
 }
 
 // --------------------------------------------------------------------- gh ---
@@ -1022,7 +1186,7 @@ function checkGhApi(args) {
     endpoint === 'graphql' &&
     effective === 'POST' &&
     !hasInput &&
-    fields.every((f) => !/^query=@/.test(f) && !/mutation/i.test(f));
+    fields.every((f) => !/^query=@/.test(f) && !/mutation/i.test(f) && !DYNAMIC.test(f));
   if (graphqlRead) return;
   deny(
     '`gh api` writes (non-GET method, -f/-F fields or --input) are not allowed. Use the GitHub MCP tools for allowed operations; ' +
@@ -1073,14 +1237,20 @@ function decide(input, opts) {
 
   if (tool === 'Bash') {
     if (typeof ti.command !== 'string') deny('Bash call without a command string. Failing closed.');
+    if (ti.command.length > MAX_COMMAND_LENGTH) {
+      deny(
+        `Command is ${ti.command.length} characters, too long to verify (limit ${MAX_COMMAND_LENGTH}). Split it, or put the script in a file in the PR.`,
+      );
+    }
     checkBash(ti.command, makeCtx(cwd, opts));
   } else if (EDIT_TOOLS.has(tool)) {
     const p = ti.file_path ?? ti.notebook_path ?? ti.path;
     if (typeof p !== 'string' || !p) deny(`${tool} call without a file path. Failing closed.`);
     assertWritable(p, makeCtx(cwd, opts), { literal: true });
   } else {
-    const m = /^mcp__(.+?)__(.+)$/.exec(tool);
-    if (m && /github/i.test(m[1])) checkGithubMcp(m[2], ti);
+    // Any MCP server whose tool name mentions github (mcp__github__*, mcp__plugin_github_github__*, ...).
+    if (tool.startsWith('mcp__') && /github/i.test(tool))
+      checkGithubMcp(tool.split('__').pop(), ti);
   }
 }
 
@@ -1111,14 +1281,7 @@ function gitBranch(dir) {
   }
 }
 
-function main() {
-  let input = null;
-  try {
-    input = JSON.parse(readFileSync(0, 'utf8'));
-  } catch {
-    /* evaluate() blocks on null */
-  }
-  const res = evaluate(input, { currentBranch: gitBranch });
+function emit(res) {
   if (res.block) {
     process.stderr.write(
       `BLOCKED by .claude/hooks/guard.mjs: ${res.reason}\n` +
@@ -1127,6 +1290,35 @@ function main() {
     process.exit(2);
   }
   process.exit(0);
+}
+
+/**
+ * Evaluation runs in a worker thread so that a pathological input (for example a regex
+ * blow-up) cannot keep the main thread from timing out. Any failure or timeout blocks (exit 2).
+ */
+function main() {
+  let input = null;
+  try {
+    input = JSON.parse(readFileSync(0, 'utf8'));
+  } catch {
+    /* evaluate() blocks on null */
+  }
+  const timer = setTimeout(
+    () =>
+      emit({ block: true, reason: 'Guard timed out while checking this call. Failing closed.' }),
+    HARD_TIMEOUT_MS,
+  );
+  timer.unref();
+  const worker = new Worker(fileURLToPath(import.meta.url), {
+    workerData: { guardJob: true, input },
+  });
+  worker.once('message', emit);
+  worker.once('error', (e) =>
+    emit({ block: true, reason: `Guard crashed (${e?.message}). Failing closed.` }),
+  );
+  worker.once('exit', () =>
+    emit({ block: true, reason: 'Guard worker ended without a verdict. Failing closed.' }),
+  );
 }
 
 const invoked = (() => {
@@ -1139,4 +1331,6 @@ const invoked = (() => {
     return false;
   }
 })();
-if (invoked) main();
+if (!isMainThread && workerData?.guardJob) {
+  parentPort.postMessage(evaluate(workerData.input, { currentBranch: gitBranch }));
+} else if (invoked && isMainThread) main();

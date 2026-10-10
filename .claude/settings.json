@@ -34,6 +34,9 @@
       "mcp__github__merge_pull_request",
       "mcp__github__enable_pr_auto_merge",
       "mcp__github__delete_file",
+      "mcp__plugin_github_github__merge_pull_request",
+      "mcp__plugin_github_github__enable_pr_auto_merge",
+      "mcp__plugin_github_github__delete_file",
       "Bash(git push --force *)",
       "Bash(git push -f *)",
       "Bash(git push --mirror*)",
@@ -90,12 +93,12 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*",
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"",
-            "timeout": 10
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\" || exit 2",
+            "timeout": 5
           }
         ]
       }
