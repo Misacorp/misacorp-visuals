@@ -102,8 +102,18 @@ describe('site', () => {
     assert.equal(data.name, 'Misacorp Visuals');
     assert.equal(data.url, 'https://misacorp.dev/');
     assert.equal(data.email, 'hello@misacorp.dev');
-    assert.equal(data.address, undefined);
+    assert.equal(data.address?.['@type'], 'PostalAddress');
+    assert.equal(data.address.addressLocality, 'Tampere');
+    assert.equal(data.address.addressCountry, 'FI');
+    assert.equal(data.address.streetAddress, undefined);
     assert.equal(data.telephone, undefined);
+  });
+
+  test('footer names the business and its municipality', () => {
+    const footer = index.match(/<footer>([\s\S]*?)<\/footer>/)?.[1];
+    assert.ok(footer, 'footer missing');
+    assert.match(footer, /Misacorp Visuals/);
+    assert.match(footer, /Tampere/);
   });
 
   test('head metadata: description length, social cards, favicons', () => {

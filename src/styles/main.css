@@ -218,6 +218,10 @@ footer {
   font-size: 0.875rem;
 }
 
+footer p + p {
+  margin-top: 0.5rem;
+}
+
 .page-404 main {
   display: grid;
   min-height: 100svh;
