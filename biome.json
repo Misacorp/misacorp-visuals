@@ -8,16 +8,8 @@
       "!node_modules",
       "!coverage",
       "!package-lock.json",
-      "!index.html",
-      "!mountainscape.html",
-      "!parallax.js",
-      "!script.js",
-      "!mountainscape.css",
-      "!js",
-      "!css",
-      "!font",
-      "!fonts",
-      "!img"
+      "!public",
+      "!src/assets"
     ]
   },
   "formatter": {

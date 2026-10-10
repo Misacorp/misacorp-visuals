@@ -1,0 +1,256 @@
+:root {
+  --sky: #efe7ce; /* hero sky, theme-color */
+  --ink: #3d3d3d; /* front trees silhouette, page background below the hero */
+  --accent: #ffd220; /* logo yellow: 7.8:1 on --ink */
+  --accent-deep: #f0c108;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--sky);
+  font: 1.125rem / 1.6 var(--font);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--sky);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  z-index: 10;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: var(--ink);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+  outline-color: var(--ink);
+}
+
+/* Hero: layered mountainscape, 2560x1440 art. --hero-h is the one number the layout and the
+   parallax maths share: never shorter than 16:9 of the width, otherwise 95% of the small
+   viewport height (capped at 140% of the width so phones don't get a tall empty sky). The art
+   is cover-cropped from the bottom, so the trees always sit on the bottom edge. */
+.hero {
+  --hero-h: max(56.25vw, min(95svh, 140vw));
+  position: relative;
+  height: var(--hero-h);
+  overflow: clip;
+  contain: paint;
+  background: var(--sky);
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+img.layer {
+  object-fit: cover;
+  object-position: 50% 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Depth 1 = moves with the page, 0 = stays put. Deeper layers lag more, so they look farther away. */
+.layer--background {
+  --depth: 0.8;
+}
+.layer--title {
+  --depth: 0.75;
+}
+.layer--mountains-1 {
+  --depth: 0.7;
+}
+.layer--mountains-2 {
+  --depth: 0.55;
+}
+.layer--mountains-3 {
+  --depth: 0.38;
+}
+.layer--mountains-4 {
+  --depth: 0.14;
+}
+
+.layer--title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--hero-h) * 0.1) 1rem 0;
+  color: var(--ink);
+  text-align: center;
+  pointer-events: none;
+}
+
+.logo {
+  width: clamp(5rem, min(16vw, 22svh), 12rem);
+  height: auto;
+}
+
+h1 {
+  font-size: clamp(2rem, 1.2rem + 3.6vw, 4.25rem);
+  line-height: 1.1;
+}
+
+.tagline {
+  font-size: clamp(1.0625rem, 0.9rem + 1.2vw, 1.75rem);
+  font-weight: 300;
+}
+
+.scroll-down {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 2.75rem;
+  margin-top: 0.75rem;
+  border-radius: 0 0 50% 50%;
+  background: var(--accent-deep);
+  color: var(--ink);
+  pointer-events: auto;
+}
+
+.scroll-down:hover {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.scroll-down:focus-visible {
+  outline-color: var(--ink);
+}
+
+.scroll-down svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Content below the hero starts in the trees' colour; the 1px overlap hides any subpixel seam. */
+.hero + main {
+  position: relative;
+  margin-top: -1px;
+}
+
+section {
+  width: min(100% - 2rem, 44rem);
+  margin-inline: auto;
+  padding-block: clamp(2.5rem, 6vw, 4.5rem) 0;
+}
+
+h2 {
+  margin-bottom: 0.75rem;
+  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
+  line-height: 1.2;
+}
+
+h3 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.services {
+  display: grid;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.services li {
+  padding-top: 0.75rem;
+  border-top: 4px solid var(--accent);
+}
+
+@media (min-width: 40em) {
+  .services {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+footer {
+  width: min(100% - 2rem, 44rem);
+  margin: clamp(3rem, 8vw, 5rem) auto 0;
+  padding-block: 1.5rem;
+  border-top: 1px solid rgb(239 231 206 / 25%);
+  font-size: 0.875rem;
+}
+
+.page-404 main {
+  display: grid;
+  min-height: 100svh;
+  place-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+@keyframes parallax {
+  to {
+    transform: translate3d(0, calc(var(--depth) * var(--hero-h)), 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* JS fallback path: parallax.js sets --py (px scrolled) on the hero. Trees stay static. */
+  .layer:not(.layer--trees) {
+    will-change: transform;
+    transform: translate3d(0, calc(var(--depth) * var(--py, 0px)), 0);
+  }
+
+  /* Compositor path: transform driven by the root scroller over exactly the hero's height,
+     so layers start moving at scrollY=0 and travel depth * hero height by the time it is gone. */
+  @supports (animation-timeline: scroll()) {
+    .layer:not(.layer--trees) {
+      animation: parallax linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0px var(--hero-h);
+    }
+  }
+}
