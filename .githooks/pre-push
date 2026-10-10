@@ -1,0 +1,28 @@
+#!/bin/sh
+# Client-side guard: refuse pushes to protected branches.
+# git passes lines on stdin: <local ref> <local sha> <remote ref> <remote sha>
+# Enabled by: git config core.hooksPath .githooks (done by the SessionStart hook).
+# This is a safety net, not a security boundary (git push --no-verify skips it;
+# the Claude guard hook blocks that flag for agents).
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/[mM][aA][iI][nN] | refs/heads/[mM][aA][sS][tT][eE][rR] | refs/heads/[gG][hH]-[pP][aA][gG][eE][sS])
+      branch=${remote_ref#refs/heads/}
+      cat >&2 <<MSG
+pre-push: refusing to push to protected branch '$branch'.
+
+All changes go through a pull request that the owner merges:
+  1. git switch -c <feature-branch>
+  2. npm run check
+  3. git push -u origin <feature-branch>
+  4. open a PR (see .claude/skills/open-pr/SKILL.md)
+
+Deleting or force-updating '$branch' is not allowed either.
+MSG
+      exit 1
+      ;;
+  esac
+done
+
+exit 0
