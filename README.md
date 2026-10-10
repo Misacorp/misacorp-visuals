@@ -10,7 +10,7 @@ Needs Node 22+ (see `.nvmrc`).
 
 | Command          | What it does                                                        |
 | ---------------- | ------------------------------------------------------------------- |
-| `npm install`    | Install dev tooling (Biome, esbuild, html-validate)                 |
+| `npm ci`         | Install dev tooling (Biome, esbuild, html-validate)                 |
 | `npm run dev`    | Build and serve at http://localhost:8080, rebuilding on change      |
 | `npm run build`  | Build to `dist/` (hashed assets, sitemap, gzip size budget)         |
 | `npm run lint`   | Biome + html-validate                                               |
@@ -30,4 +30,4 @@ The hero parallax is pure CSS (`animation-timeline: scroll()`), so it runs on th
 
 ## Deploy
 
-GitHub Pages, deployed by `.github/workflows/deploy.yml` on pushes to `main` (merged PRs only). The custom domain `misacorp.dev` comes from `public/CNAME`; set the Pages source to "GitHub Actions" in the repository settings. To preview under the project URL, build with `BASE_PATH=/misacorp-visuals/ npm run build`.
+GitHub Pages, deployed by `.github/workflows/deploy.yml` on pushes to `main` (merged PRs only). Set the Pages source to "GitHub Actions" and the custom domain to `misacorp.dev` in the repository's Pages settings (Actions deployments ignore `public/CNAME`; it is kept for clarity). To preview under the project URL, build with `BASE_PATH=/misacorp-visuals/ npm run build`.
