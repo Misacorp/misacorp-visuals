@@ -1,6 +1,6 @@
 # Status
 
-Rewritten at the end of every task (not appended). Last updated: 2026-10-10.
+Rewritten at the end of every task (not appended). Last updated: 2026-10-11.
 
 ## Current state
 
@@ -8,8 +8,7 @@ Rewritten at the end of every task (not appended). Last updated: 2026-10-10.
   Hero parallax uses CSS scroll-driven animations, rAF fallback in `src/scripts/parallax.js`.
 - Language: English only, `lang="en"`, no `hreflang` (see `decisions.md`).
 - Copy is a minimal placeholder (About, Services, Contact).
-- Footer: business name, Tampere, Finland, contact email. JSON-LD has the Tampere/FI address.
-  The Y-tunnus is still missing.
+- Footer: business name, Business ID 2549090-7, Tampere, contact email. JSON-LD has the Tampere/FI address and `taxID`.
 - Domain: owner renamed `master` to `main`, set custom domain `misacorp.dev` with HTTPS. DNS: apex A/AAAA records to GitHub Pages, DNS only (no proxy).
   `tasks.misacorp.dev` is a separate Cloudflare Worker. Never touch it.
   Cloudflare Email Routing (MX + SPF) forwards hello@misacorp.dev; keep those records.
@@ -19,13 +18,11 @@ Rewritten at the end of every task (not appended). Last updated: 2026-10-10.
 
 ## Next steps
 
-1. Owner: supply the Y-tunnus. Add it to the footer and JSON-LD once received.
-2. Merge PR #3 (owner) so the new site goes live.
-3. Real copy from the owner.
-4. Check parallax smoothness on real devices (headless software compositing showed dropped frames with 6 moving layers).
+1. Merge PR #3 (owner) so the new site goes live.
+2. Real copy from the owner.
+3. Check parallax smoothness on real devices (headless software compositing showed dropped frames with 6 moving layers).
 
 ## Open questions for the owner
 
-- Y-tunnus for the footer (legally required for service-provider identification).
 - Pages source set to "GitHub Actions"? Not confirmed.
 - Repo is public, so a free branch ruleset on `main` is possible and would add server-side enforcement.
