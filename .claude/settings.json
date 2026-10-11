@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Edit(**/.mcp.json)",
+      "Edit(**/mcp.json)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/.claude/settings.local.json)",
+      "Edit(/.claude/settings.proposed.json)",
+      "Edit(/.claude/hooks/**)",
+      "Edit(/.githooks/**)",
+      "Edit(/.git/**)",
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/.claude.json)",
+      "Write(**/.mcp.json)",
+      "Write(**/mcp.json)",
+      "Write(/.claude/settings.json)",
+      "Write(/.claude/settings.local.json)",
+      "Write(/.claude/settings.proposed.json)",
+      "Write(/.claude/hooks/**)",
+      "Write(/.githooks/**)",
+      "Write(/.git/**)",
+      "Write(~/.claude/settings.json)",
+      "Write(~/.claude.json)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.npmrc)",
+      "Read(~/.git-credentials)",
+      "mcp__github__merge_pull_request",
+      "mcp__github__enable_pr_auto_merge",
+      "mcp__github__delete_file",
+      "mcp__plugin_github_github__merge_pull_request",
+      "mcp__plugin_github_github__enable_pr_auto_merge",
+      "mcp__plugin_github_github__delete_file",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --mirror*)",
+      "Bash(git push --no-verify*)",
+      "Bash(git push * main)",
+      "Bash(git push * master)",
+      "Bash(git push * gh-pages)",
+      "Bash(git push * HEAD:main)",
+      "Bash(git push * HEAD:master)",
+      "Bash(git config --global *)",
+      "Bash(git config --system *)",
+      "Bash(git remote add *)",
+      "Bash(git remote set-url *)",
+      "Bash(gh pr merge*)",
+      "Bash(gh repo edit*)",
+      "Bash(npm publish*)",
+      "Bash(npm config set *)"
+    ],
+    "ask": [
+      "Edit(/.github/workflows/**)",
+      "Edit(/.github/dependabot.yml)",
+      "Edit(/.npmrc)",
+      "Write(/.github/workflows/**)",
+      "Write(/.github/dependabot.yml)",
+      "Write(/.npmrc)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npm uninstall *)",
+      "Bash(npx *)"
+    ],
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm test)",
+      "Bash(npm test *)",
+      "Bash(npm ci)",
+      "Bash(npm ci *)",
+      "Bash(node --test *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff)",
+      "Bash(git diff *)",
+      "Bash(git log)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch --show-current)",
+      "Bash(git rev-parse *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(bash -n *)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "enableAllProjectMcpServers": false,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\" || exit 2",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\"",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

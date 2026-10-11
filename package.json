@@ -1,0 +1,23 @@
+{
+  "name": "misacorp-visuals",
+  "version": "1.0.0",
+  "description": "Static homepage for Misacorp Visuals (https://misacorp.dev)",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "lint": "biome check . && html-validate \"src/**/*.html\"",
+    "format": "biome check --write .",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "check": "npm run lint && npm run build && npm run test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "esbuild": "0.28.2",
+    "html-validate": "11.16.2"
+  }
+}
