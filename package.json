@@ -16,8 +16,8 @@
     "check": "npm run lint && npm run build && npm run test"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
+    "@biomejs/biome": "2.6.3",
     "esbuild": "0.28.2",
-    "html-validate": "11.16.2"
+    "html-validate": "11.17.0"
   }
 }
